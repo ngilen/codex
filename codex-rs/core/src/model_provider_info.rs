@@ -44,6 +44,10 @@ pub struct ModelProviderInfo {
     /// variable and set it.
     pub env_key_instructions: Option<String>,
 
+    /// Optional cookie string for providers that use cookie-based auth.
+    #[serde(default)]
+    pub cookie: Option<String>,
+
     /// Which wire protocol this provider expects.
     #[serde(default)]
     pub wire_api: WireApi,
@@ -103,6 +107,30 @@ impl ModelProviderInfo {
             None => Ok(None),
         }
     }
+
+    /// Returns the cookie for this provider, taking `$OPENAI_COOKIE` and
+    /// `${VAR}` expansions into account.
+    pub fn cookie(&self) -> Option<String> {
+        if let Ok(val) = std::env::var(crate::openai_cookie::OPENAI_COOKIE_ENV_VAR) {
+            if !val.trim().is_empty() {
+                return Some(val);
+            }
+        }
+
+        match &self.cookie {
+            Some(c) => {
+                if c.starts_with("${") && c.ends_with('}') {
+                    let key = &c[2..c.len() - 1];
+                    std::env::var(key).ok().filter(|v| !v.trim().is_empty())
+                } else if c.trim().is_empty() {
+                    None
+                } else {
+                    Some(c.clone())
+                }
+            }
+            None => None,
+        }
+    }
 }
 
 /// Built-in default provider list.
@@ -121,6 +149,7 @@ pub fn built_in_model_providers() -> HashMap<String, ModelProviderInfo> {
                 base_url: "https://api.openai.com/v1".into(),
                 env_key: Some("OPENAI_API_KEY".into()),
                 env_key_instructions: Some("Create an API key (https://platform.openai.com) and export it as an environment variable.".into()),
+                cookie: None,
                 wire_api: WireApi::Responses,
                 query_params: None,
             },
@@ -147,6 +176,7 @@ base_url = "http://localhost:11434/v1"
             base_url: "http://localhost:11434/v1".into(),
             env_key: None,
             env_key_instructions: None,
+            cookie: None,
             wire_api: WireApi::Chat,
             query_params: None,
         };
@@ -168,6 +198,7 @@ query_params = { api-version = "2025-04-01-preview" }
             base_url: "https://xxxxx.openai.azure.com/openai".into(),
             env_key: Some("AZURE_OPENAI_API_KEY".into()),
             env_key_instructions: None,
+            cookie: None,
             wire_api: WireApi::Chat,
             query_params: Some(maplit::hashmap! {
                 "api-version".to_string() => "2025-04-01-preview".to_string(),

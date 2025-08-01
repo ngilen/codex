@@ -135,6 +135,25 @@ export function getApiKey(provider: string = "openai"): string | undefined {
   return undefined;
 }
 
+export function getCookie(provider: string = "openai"): string | undefined {
+  const envCookie = process.env["OPENAI_COOKIE"];
+  if (envCookie) {
+    return envCookie;
+  }
+  const config = loadConfig();
+  const providersConfig = config.providers ?? providers;
+  const providerInfo = providersConfig[provider.toLowerCase()];
+  if (providerInfo && providerInfo.cookie) {
+    const val = providerInfo.cookie;
+    if (val.startsWith("${") && val.endsWith("}")) {
+      const envKey = val.slice(2, -1);
+      return process.env[envKey];
+    }
+    return val;
+  }
+  return undefined;
+}
+
 export type FileOpenerScheme = "vscode" | "cursor" | "windsurf";
 
 // Represents config as persisted in config.json.
@@ -149,7 +168,7 @@ export type StoredConfig = {
   /** Disable server-side response storage (send full transcript each request) */
   disableResponseStorage?: boolean;
   flexMode?: boolean;
-  providers?: Record<string, { name: string; baseURL: string; envKey: string }>;
+  providers?: Record<string, { name: string; baseURL: string; envKey: string; cookie?: string }>;
   history?: {
     maxSize?: number;
     saveHistory?: boolean;
@@ -202,7 +221,7 @@ export type AppConfig = {
 
   /** Enable the "flex-mode" processing mode for supported models (o3, o4-mini) */
   flexMode?: boolean;
-  providers?: Record<string, { name: string; baseURL: string; envKey: string }>;
+  providers?: Record<string, { name: string; baseURL: string; envKey: string; cookie?: string }>;
   history?: {
     maxSize: number;
     saveHistory: boolean;
