@@ -106,6 +106,7 @@ async fn keeps_previous_response_id_between_tasks() {
         // provider is not set.
         env_key: Some("PATH".into()),
         env_key_instructions: None,
+        cookie: None,
         wire_api: codex_core::WireApi::Responses,
         query_params: None,
     };

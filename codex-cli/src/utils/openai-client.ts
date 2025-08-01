@@ -3,6 +3,7 @@ import type { AppConfig } from "./config.js";
 import {
   getBaseUrl,
   getApiKey,
+  getCookie,
   AZURE_OPENAI_API_VERSION,
   OPENAI_TIMEOUT_MS,
   OPENAI_ORGANIZATION,
@@ -30,6 +31,10 @@ export function createOpenAIClient(
   }
   if (OPENAI_PROJECT) {
     headers["OpenAI-Project"] = OPENAI_PROJECT;
+  }
+  const cookie = getCookie(config.provider);
+  if (cookie) {
+    headers["Cookie"] = cookie;
   }
 
   if (config.provider?.toLowerCase() === "azure") {

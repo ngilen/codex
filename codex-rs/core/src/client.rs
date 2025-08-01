@@ -136,10 +136,11 @@ impl ModelClient {
                     instructions: None,
                 })
             })?;
-            let res = self
-                .client
-                .post(&url)
-                .bearer_auth(api_key)
+            let mut req_builder = self.client.post(&url).bearer_auth(api_key);
+            if let Some(cookie) = self.provider.cookie() {
+                req_builder = req_builder.header(reqwest::header::COOKIE, cookie);
+            }
+            let res = req_builder
                 .header("OpenAI-Beta", "responses=experimental")
                 .header(reqwest::header::ACCEPT, "text/event-stream")
                 .json(&payload)
@@ -389,4 +390,53 @@ async fn stream_from_fixture(path: impl AsRef<Path>) -> Result<ResponseStream> {
     let stream = ReaderStream::new(rdr).map_err(CodexErr::Io);
     tokio::spawn(process_sse(stream, tx_event));
     Ok(ResponseStream { rx_event })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client_common::Prompt;
+    use std::collections::HashMap;
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn includes_cookie_header_when_set() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/responses"))
+            .and(header("cookie", "c=1"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_raw("data: [DONE]\n\n", "text/event-stream"),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let provider = ModelProviderInfo {
+            name: "test".into(),
+            base_url: server.uri(),
+            env_key: Some("PATH".into()),
+            env_key_instructions: None,
+            cookie: Some("c=1".into()),
+            wire_api: WireApi::Responses,
+            query_params: None,
+        };
+        let prompt = Prompt {
+            input: vec![],
+            prev_id: None,
+            user_instructions: None,
+            store: true,
+            extra_tools: HashMap::new(),
+        };
+        let client = ModelClient::new(
+            "gpt-test",
+            provider,
+            crate::config_types::ReasoningEffort::default(),
+            crate::config_types::ReasoningSummary::default(),
+        );
+        let _ = client.stream(&prompt).await;
+    }
 }

@@ -30,6 +30,7 @@ mod models;
 pub mod openai_api_key;
 mod openai_model_info;
 mod openai_tools;
+pub mod openai_cookie;
 mod project_doc;
 pub mod protocol;
 mod rollout;

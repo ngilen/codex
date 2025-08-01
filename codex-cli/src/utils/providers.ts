@@ -1,11 +1,12 @@
 export const providers: Record<
   string,
-  { name: string; baseURL: string; envKey: string }
+  { name: string; baseURL: string; envKey: string; cookie?: string }
 > = {
   openai: {
     name: "OpenAI",
     baseURL: "https://api.openai.com/v1",
     envKey: "OPENAI_API_KEY",
+    cookie: undefined,
   },
   openrouter: {
     name: "OpenRouter",
